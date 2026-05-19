@@ -1,0 +1,298 @@
+<html lang="es">
+<head>
+    <meta charset="UTF-8"></meta>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"></meta>
+    <title>Predimensionamiento Estructural Avanzado</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --light: #ecf0f1;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; color: #333; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary); text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 30px; font-size: 0.9em; }
+        
+        .grid-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--secondary); font-size: 0.9rem; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
+        select:focus, input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1); }
+        
+        button { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #2980b9; transform: translateY(-2px); }
+
+        .results-area { margin-top: 30px; display: none; animation: fadeIn 0.5s; }
+        .result-card { background: var(--light); padding: 20px; border-radius: 8px; border-left: 5px solid var(--accent); margin-bottom: 20px; }
+        .result-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #ddd; }
+        .result-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .val { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
+        .unit { font-size: 0.9rem; color: #7f8c8d; margin-left: 5px; }
+        
+        .canvas-wrap { height: 250px; background: #fff; border: 1px solid #eee; border-radius: 8px; position: relative; overflow: hidden; }
+        canvas { width: 100%; height: 100%; }
+
+        .info-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-left: 10px; }
+        .badge-def { background: #e8f6f3; color: #16a085; }
+        .badge-load { background: #fef9e7; color: #f1c40f; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏗️ Predimensionamiento Vigas</h1>
+    <p class="subtitle">Para diseño final conforme a planos, consultar con ingeniero</p>
+    <p class="subtitle">ingtecnologica@gmail.com</p>
+    <div class="grid-form">
+        <div class="form-group">
+            <label for="material">Material</label>
+            <select id="material">
+                <option value="hormigon">Hormigón Armado</option>
+                <option value="acero">Acero Estructural</option>
+                <option value="madera">Madera Aserrada</option>
+                <option value="mixto">Viga Mixta (Acero-Concreto)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="apoyo">Condición de Apoyo</label>
+            <select id="apoyo">
+                <option value="simple">Simple (Extremos libres)</option>
+                <option value="continua">Continua (2+ Tramos)</option>
+                <option value="voladizo">Voladizo (Cantiliver)</option>
+                <option value="empotrada">Empotrada (Fixed-Fixed)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="luz">Luz Libre (L) [metros]</label>
+            <input id="luz" min="1" placeholder="Ej: 6.5" step="0.1" type="number" />
+        </div>
+
+        <div class="form-group">
+            <label for="uso">Uso / Sobrecarga Estimada</label>
+            <select id="uso">
+                <option value="normal">Normal (Vivienda/Oficina)</option>
+                <option value="comercio">Comercio / Público (Alta Carga)</option>
+                <option value="almacen">Almacén / Industrial (Muy Alta Carga)</option>
+                <option value="azotea">Azotea No Accesible</option>
+            </select>
+        </div>
+    </div>
+
+    <button onclick="calcularAvanzado()">Calcular Predimensionamiento</button>
+
+    <div class="results-area" id="results">
+        <div class="result-card">
+            <div class="result-row">
+                <span>Altura Mínima Sugerida (h):</span>
+                <div><span class="val" id="res-h">--</span><span class="unit">cm</span></div>
+            </div>
+            <div class="result-row">
+                <span>Flecha Máxima Admisible:</span>
+                <div><span class="val" id="res-def">--</span><span class="unit">cm</span></div>
+            </div>
+            <div class="result-row">
+                <span>Relación Esbeltez (L/h):</span>
+                <div><span class="val" id="res-rel">--</span></div>
+            </div>
+            <div style="color: #666666; font-size: 0.85rem; margin-top: 10px;">
+                <span class="info-badge badge-def" id="msg-apoyo"></span>
+                <span class="info-badge badge-load" id="msg-uso"></span>
+            </div>
+        </div>
+
+        <div class="canvas-wrap">
+            <canvas id="beamCanvas"></canvas>
+        </div>
+        <p style="color: #999999; font-size: 0.8rem; margin-top: 10px; text-align: center;">
+            *La visualización de la flecha está exagerada para fines ilustrativos.
+        </p>
+    </div>
+</div>
+
+<script>
+    // Base de datos de factores
+    // hFactor: L / h (Mayor número = viga más esbelta/delgada)
+    // defFactor: L / delta (Mayor número = menor deformación permitida)
+    const db = {
+        hormigon: {
+            simple: { h: 12, def: 240 },
+            continua: { h: 15, def: 240 }, // ACI permite L/18.5 aprox, usamos 15 conservador
+            voladizo: { h: 6, def: 180 },
+            empotrada: { h: 14, def: 240 }
+        },
+        acero: {
+            simple: { h: 20, def: 360 },
+            continua: { h: 25, def: 360 },
+            voladizo: { h: 10, def: 180 },
+            empotrada: { h: 22, def: 360 }
+        },
+        madera: {
+            simple: { h: 15, def: 360 }, // Madera es más flexible, requiere más control de deflexión
+            continua: { h: 18, def: 360 },
+            voladizo: { h: 8, def: 180 },
+            empotrada: { h: 16, def: 360 }
+        },
+        mixto: {
+            simple: { h: 22, def: 360 },
+            continua: { h: 28, def: 360 },
+            voladizo: { h: 12, def: 180 },
+            empotrada: { h: 24, def: 360 }
+        }
+    };
+
+    // Modificadores por uso (Sobrecarga)
+    // Si la carga es alta, reducimos la esbeltez permitida (hFactor menor -> viga más alta)
+    // Y exigimos menor deflexión (defFactor mayor)
+    const usos = {
+        normal: { loadMod: 1.0, defMod: 1.0, label: "Carga Estándar" },
+        azotea: { loadMod: 0.9, defMod: 0.8, label: "Carga Baja (Azotea)" }, // Permite ser un poco más esbelto
+        comercio: { loadMod: 0.85, defMod: 1.3, label: "Alta Carga/Vibración" }, // Viga más robusta
+        almacen: { loadMod: 0.75, defMod: 1.5, label: "Carga Muy Alta" }
+    };
+
+    function calcularAvanzado() {
+        const mat = document.getElementById('material').value;
+        const apo = document.getElementById('apoyo').value;
+        const luz = parseFloat(document.getElementById('luz').value);
+        const usoKey = document.getElementById('uso').value;
+
+        if (!luz || luz <= 0) { alert("Ingresa una luz válida"); return; }
+
+        const base = db[mat][apo];
+        const uso = usos[usoKey];
+
+        // Ajuste de factores por uso
+        // Si loadMod es 0.85, el divisor de altura se reduce (viga más alta)
+        const hFactorFinal = base.h * uso.loadMod; 
+        // Si defMod es 1.3, el divisor de deflexión aumenta (permite menos mm de flecha)
+        const defFactorFinal = base.def * uso.defMod;
+
+        const h_metros = luz / hFactorFinal;
+        const h_cm = h_metros * 100;
+        
+        const def_metros = luz / defFactorFinal;
+        const def_cm = def_metros * 100;
+
+        // Renderizar
+        document.getElementById('res-h').textContent = h_cm.toFixed(1);
+        document.getElementById('res-def').textContent = def_cm.toFixed(2);
+        document.getElementById('res-rel').textContent = `1 / ${hFactorFinal.toFixed(1)}`;
+        
+        document.getElementById('msg-apoyo').textContent = `Apoyo: ${apo.toUpperCase()}`;
+        document.getElementById('msg-uso').textContent = uso.label;
+
+        document.getElementById('results').style.display = 'block';
+
+        drawBeam(luz, h_cm, def_cm, apo);
+    }
+
+    function drawBeam(luz, h_cm, def_cm, apoyo) {
+        const canvas = document.getElementById('beamCanvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        
+        const w = rect.width;
+        const h = rect.height;
+        const margin = 40;
+        
+        ctx.clearRect(0, 0, w, h);
+        
+        // Escala horizontal
+        const drawW = w - (margin * 2);
+        const scaleX = drawW / luz;
+        
+        const groundY = h - 50;
+        const beamThickPx = 25; // Grosor visual fijo
+        
+        // Dibujar Apoyos según tipo
+        ctx.fillStyle = '#7f8c8d';
+        ctx.strokeStyle = '#7f8c8d';
+        ctx.lineWidth = 2;
+
+        const leftX = margin;
+        const rightX = w - margin;
+        const beamY = groundY - 60; // Posición base de la viga
+
+        if (apoyo === 'simple') {
+            // Triángulo Izq
+            ctx.beginPath(); ctx.moveTo(leftX, beamY+beamThickPx); ctx.lineTo(leftX-10, beamY+beamThickPx+15); ctx.lineTo(leftX+10, beamY+beamThickPx+15); ctx.fill();
+            // Círculo Der
+            ctx.beginPath(); ctx.arc(rightX, beamY+beamThickPx+7, 7, 0, Math.PI*2); ctx.fill();
+        } else if (apoyo === 'voladizo') {
+            // Empotramiento a la izquierda (líneas verticales)
+            ctx.beginPath();
+            ctx.moveTo(leftX, beamY - 10);
+            ctx.lineTo(leftX, beamY + beamThickPx + 10);
+            ctx.stroke();
+            // Hatch lines
+            for(let i=0; i<5; i++) {
+                ctx.beginPath(); ctx.moveTo(leftX, beamY - 10 + (i*5)); ctx.lineTo(leftX-10, beamY - 5 + (i*5)); ctx.stroke();
+            }
+            // El lado derecho está libre
+        } else if (apoyo === 'empotrada') {
+             // Empotramiento ambos lados
+             [leftX, rightX].forEach(x => {
+                ctx.beginPath(); ctx.moveTo(x, beamY - 10); ctx.lineTo(x, beamY + beamThickPx + 10); ctx.stroke();
+             });
+        } else if (apoyo === 'continua') {
+            // Triángulo Izq
+            ctx.beginPath(); ctx.moveTo(leftX, beamY+beamThickPx); ctx.lineTo(leftX-10, beamY+beamThickPx+15); ctx.lineTo(leftX+10, beamY+beamThickPx+15); ctx.fill();
+            // Triángulo Der
+            ctx.beginPath(); ctx.moveTo(rightX, beamY+beamThickPx); ctx.lineTo(rightX-10, beamY+beamThickPx+15); ctx.lineTo(rightX+10, beamY+beamThickPx+15); ctx.fill();
+            // Línea de continuidad (sugerida)
+            ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(leftX, beamY-20); ctx.lineTo(rightX, beamY-20); ctx.stroke(); ctx.setLineDash([]);
+        }
+
+        // Dibujar Viga
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(leftX, beamY, drawW, beamThickPx);
+        
+        // Dibujar Deflexión (Curva)
+        // Exageración visual para que se vea
+        let visDef = def_cm * 1.5; 
+        if (visDef > 50) visDef = 50;
+
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        
+        if (apoyo === 'voladizo') {
+            // Curva de voladizo (cúbica aprox)
+            ctx.moveTo(leftX, beamY + beamThickPx);
+            ctx.bezierCurveTo(leftX + drawW/3, beamY + beamThickPx, rightX, beamY + beamThickPx, rightX, beamY + beamThickPx + visDef);
+        } else {
+            // Curva simple/continua (parábola)
+            ctx.moveTo(leftX, beamY + beamThickPx);
+            ctx.quadraticCurveTo(w/2, beamY + beamThickPx + visDef, rightX, beamY + beamThickPx);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Cota Luz
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`L = ${luz} m`, w/2, groundY + 20);
+        
+        // Flecha Cota
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillText(`δ ≈ ${def_cm.toFixed(2)} cm`, w/2, beamY + beamThickPx + visDef + 15);
+    }
+</script>
+
+</body>
+</html>
